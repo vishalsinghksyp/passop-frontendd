@@ -12,6 +12,7 @@ const Manager = () => {
   const [copyToast, setCopyToast] = useState("");
   const [editId, setEditId] = useState(null);
   const [buttonText, setButtonText] = useState("Save");
+  const [deleteId, setDeleteId] = useState(null);
 
   const BASE_URL = BACKEND_URL;
   const navigate = useNavigate();
@@ -102,7 +103,31 @@ const Manager = () => {
     setButtonText("Update");
   };
 
-  const deletePassword = async (id) => {
+  // When user clicks delete button
+  const deletePassword = (id) => {
+    setDeleteId(id); // just set the id; modal will appear
+  };
+  const confirmDeletePassword = async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/${deleteId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", userid: userEmail },
+      });
+      if (res.ok) {
+        toast("Password deleted successfully!");
+        fetchPasswords();
+      } else {
+        toast.error("Failed to delete password");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error deleting password");
+    } finally {
+      setDeleteId(null); // close modal
+    }
+  };
+
+  const deletePasswor = async (id) => {
     const confirmDelete = window.confirm("Do you want to delete?");
     if (!confirmDelete) return;
 
@@ -191,9 +216,14 @@ const Manager = () => {
       </div>
 
       {/* Password Table */}
-      {passwordArray.length > 0 && (
+      {/* Password Section */}
+      {passwordArray.length > 0 ? (
         <div className="p-4">
-          <h2 className="font-bold text-xl mb-2 italic">-Saved Passwords-</h2>
+          <h2 className="inline-block mb-3">
+            <span className="bg-green-200 text-green-800 text-sm font-semibold px-3 py-1 rounded-full uppercase tracking-wide shadow-sm flex items-center gap-1">
+              <span>🔒</span> Saved Passwords
+            </span>
+          </h2>
           <div className="overflow-x-auto w-full">
             <table className="w-full table-auto border border-black rounded">
               <thead>
@@ -213,37 +243,38 @@ const Manager = () => {
                     <td className="border border-white px-2 py-1 relative pr-10">
                       <span>{item.site}</span>
                       <span
-                        className="w-5 h-5 absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer lordIcon"
+                        className="w-5 h-5 absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"
                         onClick={() => copyFunction(item.site)}
                       >
                         <lord-icon
                           src="https://cdn.lordicon.com/iykgtsbt.json"
                           trigger="click"
-                          title="copy"
                           style={{ width: "20px", height: "20px" }}
                         ></lord-icon>
                       </span>
                     </td>
+
                     <td className="border border-white px-2 py-1 relative pr-10">
                       <span>{item.username}</span>
                       <span
-                        className="w-5 h-5 absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer lordIcon"
+                        className="w-5 h-5 absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"
                         onClick={() => copyFunction(item.username)}
                       >
                         <lord-icon
                           src="https://cdn.lordicon.com/iykgtsbt.json"
                           trigger="click"
-                          title="copy"
                           style={{ width: "20px", height: "20px" }}
                         ></lord-icon>
                       </span>
                     </td>
+
                     <td className="border border-white px-2 py-1 relative pr-16">
                       <span className="font-mono">
                         {visiblePasswords[item._id]
                           ? item.password
                           : "•".repeat(8)}
                       </span>
+
                       <img
                         src={
                           visiblePasswords[item._id]
@@ -254,44 +285,39 @@ const Manager = () => {
                         className="w-5 h-5 absolute right-10 top-1/2 -translate-y-1/2 cursor-pointer"
                         onClick={() => togglePasswordVisibility(item._id)}
                       />
+
                       <span
-                        className="w-5 h-5 absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer lordIcon"
+                        className="w-5 h-5 absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"
                         onClick={() => copyFunction(item.password)}
                       >
                         <lord-icon
                           src="https://cdn.lordicon.com/iykgtsbt.json"
                           trigger="click"
-                          title="copy"
                           style={{ width: "20px", height: "20px" }}
                         ></lord-icon>
                       </span>
                     </td>
-                    <td className="border border-white px-2 py-1 ">
+
+                    <td className="border border-white px-2 py-1">
                       <div className="flex justify-center gap-2">
                         <button
-                          className="flex cursor-pointer items-center gap-2 hover:bg-yellow-300
-                          text-black px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow 
-                          backdrop-blur-md active:scale-95 hover:text-white"
+                          className="hover:bg-yellow-300 px-3 py-1.5 rounded-lg"
                           onClick={() => handleEdit(item)}
                         >
                           <lord-icon
                             src="https://cdn.lordicon.com/gwlusjdu.json"
                             trigger="hover"
-                            title="Edit"
                             style={{ width: "20px", height: "20px" }}
                           ></lord-icon>
                         </button>
 
                         <button
-                          className="flex cursor-pointer items-center gap-2 hover:bg-red-400 
-                          text-black px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow 
-                          backdrop-blur-md active:scale-95 hover:text-white"
+                          className="hover:bg-red-400 px-3 py-1.5 rounded-lg"
                           onClick={() => deletePassword(item._id)}
                         >
                           <lord-icon
                             src="https://cdn.lordicon.com/xyfswyxf.json"
                             trigger="hover"
-                            title="delete"
                             style={{ width: "20px", height: "20px" }}
                           ></lord-icon>
                         </button>
@@ -303,12 +329,67 @@ const Manager = () => {
             </table>
           </div>
         </div>
+      ) : (
+        /* Empty State */
+        <div className="flex flex-col items-center justify-center mt-16 text-center text-gray-700">
+          <lord-icon
+            src="https://cdn.lordicon.com/egiwmiit.json"
+            trigger="loop"
+            delay="2000"
+            colors="primary:#10b981"
+            style={{ width: "90px", height: "90px" }}
+          ></lord-icon>
+
+          <h3 className="text-xl font-semibold mt-4">Your vault is empty</h3>
+
+          <p className="text-sm text-gray-500 mt-1 max-w-sm">
+            Add your first password using the form above. Everything you save
+            will appear here securely.
+          </p>
+        </div>
       )}
 
       {/* Copy Toast */}
       {copyToast && (
         <div className="fixed top-5 left-1/2 -translate-x-1/2 bg-black text-white px-4 py-2 rounded-lg shadow-lg animate-fade">
           {copyToast}
+        </div>
+      )}
+      {/* Delete Confirmation Modal */}
+      {deleteId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-4 w-80 animate-scaleIn">
+            <div className="flex flex-col items-center text-center gap-2">
+              <lord-icon
+                src="https://cdn.lordicon.com/tdrtiskw.json"
+                trigger="loop"
+                colors="primary:#ef4444"
+                style={{ width: "50px", height: "50px" }}
+              ></lord-icon>
+
+              <h3 className="text-lg font-semibold text-gray-800">
+                Delete this password?
+              </h3>
+              <p className="text-sm text-gray-500">
+                This action cannot be undone.
+              </p>
+
+              <div className="flex justify-between gap-2 mt-4 w-full">
+                <button
+                  className="flex-1 px-3 py-1.5 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+                  onClick={() => setDeleteId(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="flex-1 px-3 py-1.5 rounded-full bg-red-500 text-white hover:bg-red-600 transition"
+                  onClick={confirmDeletePassword}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </>
