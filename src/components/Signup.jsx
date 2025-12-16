@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 const Signup = () => {
   const [name, setName] = useState("");
@@ -18,7 +19,7 @@ const Signup = () => {
     }
 
     try {
-      const res = await fetch("http://localhost:3000/signup", {
+      const res = await fetch(`${BACKEND_URL}/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),

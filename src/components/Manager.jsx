@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import ReactButton from "./ReactButton";
 import { ToastContainer, toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 const Manager = () => {
   const [show, setShow] = useState(false);
@@ -12,7 +13,7 @@ const Manager = () => {
   const [editId, setEditId] = useState(null);
   const [buttonText, setButtonText] = useState("Save");
 
-  const BASE_URL = "http://localhost:3000";
+  const BASE_URL = BACKEND_URL;
   const navigate = useNavigate();
   const userEmail = localStorage.getItem("userEmail");
 
