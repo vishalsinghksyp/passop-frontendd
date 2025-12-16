@@ -1,21 +1,30 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+const MIN_LOADING_TIME = 800; // ms
 
 const Login = ({ setIsLoggedIn }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
 
+    setError("");
+
     if (!email || !password) {
-      alert("Please fill all fields");
+      setError("Please fill all fields");
       return;
     }
+
+    const startTime = Date.now();
+    setLoading(true);
 
     try {
       const res = await fetch(`${BACKEND_URL}/login`, {
@@ -26,20 +35,36 @@ const Login = ({ setIsLoggedIn }) => {
 
       const data = await res.json();
 
-      if (res.ok) {
-        // Store token and userEmail for protected routes
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("userEmail", data.email);
-        setIsLoggedIn(true);
-        navigate("/"); // redirect to main app
-      } else {
-        alert(data.message);
-      }
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, MIN_LOADING_TIME - elapsed);
+
+      setTimeout(() => {
+        if (res.ok) {
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("userEmail", data.email);
+          setIsLoggedIn(true);
+          navigate("/");
+        } else {
+          setError(data.message || "Invalid email or password");
+        }
+        setLoading(false);
+      }, remaining);
     } catch (err) {
       console.error(err);
-      alert("Login failed. Try again.");
+
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, MIN_LOADING_TIME - elapsed);
+
+      setTimeout(() => {
+        setError("Something went wrong. Please try again.");
+        setLoading(false);
+      }, remaining);
     }
   };
+
+  const inputClass = `w-full px-4 py-2 bg-white/20 border border-white/30 rounded-lg
+    placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-400
+    ${loading ? "opacity-60 cursor-not-allowed" : ""}`;
 
   return (
     <div className="grow justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-black flex flex-col">
@@ -65,8 +90,9 @@ const Login = ({ setIsLoggedIn }) => {
                 type="email"
                 placeholder="you@example.com"
                 value={email}
+                disabled={loading}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2 bg-white/20 border border-white/30 rounded-lg placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                className={inputClass}
               />
             </div>
 
@@ -77,30 +103,60 @@ const Login = ({ setIsLoggedIn }) => {
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
                 value={password}
+                disabled={loading}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2 pr-10 bg-white/20 border border-white/30 rounded-lg placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                className={`${inputClass} pr-10`}
               />
               <img
                 src={showPassword ? "./eye.png" : "./hidden.png"}
                 alt="toggle password"
-                className="w-5 h-5 absolute right-3 top-9 cursor-pointer opacity-80 hover:opacity-100"
-                onClick={() => setShowPassword(!showPassword)}
+                className={`w-5 h-5 absolute right-3 top-9 opacity-80 hover:opacity-100
+                  ${
+                    loading ? "cursor-not-allowed opacity-40" : "cursor-pointer"
+                  }`}
+                onClick={() => !loading && setShowPassword(!showPassword)}
               />
             </div>
+
+            {/* Error message */}
+            {error && (
+              <div
+                className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2"
+                aria-live="polite"
+              >
+                {error}
+              </div>
+            )}
 
             {/* Login Button */}
             <button
               type="submit"
-              className="w-full cursor-pointer bg-emerald-500 text-black py-2 rounded-lg font-semibold hover:bg-emerald-400 transition flex items-center justify-center gap-2"
+              disabled={loading}
+              className={`w-full py-2 rounded-lg font-semibold transition
+                flex items-center justify-center gap-3
+                ${
+                  loading
+                    ? "bg-emerald-400 cursor-not-allowed"
+                    : "bg-emerald-500 hover:bg-emerald-400 cursor-pointer"
+                }`}
             >
-              <span>Login</span>
-              <lord-icon
-                src="https://cdn.lordicon.com/urswgamh.json"
-                trigger="hover"
-                target="button"
-                colors="primary:#ffffff,secondary:#ffffff"
-                style={{ width: "24px", height: "24px" }}
-              ></lord-icon>
+              {loading ? (
+                <>
+                  <span>Unlocking vault…</span>
+                  <span className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></span>
+                </>
+              ) : (
+                <>
+                  <span>Login</span>
+                  <lord-icon
+                    src="https://cdn.lordicon.com/urswgamh.json"
+                    trigger="hover"
+                    target="button"
+                    colors="primary:#ffffff,secondary:#ffffff"
+                    style={{ width: "24px", height: "24px" }}
+                  ></lord-icon>
+                </>
+              )}
             </button>
           </form>
 
