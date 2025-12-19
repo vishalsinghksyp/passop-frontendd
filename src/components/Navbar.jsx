@@ -6,9 +6,16 @@ const Navbar = ({ setIsLoggedIn }) => {
   const userEmail = localStorage.getItem("userEmail"); // logged-in user
 
   const handleLogout = () => {
+    const userEmail = localStorage.getItem("userEmail");
+
+    if (userEmail) {
+      localStorage.removeItem(`passop_passwords_${userEmail}`);
+    }
+
     localStorage.removeItem("token");
     localStorage.removeItem("userEmail");
-    setIsLoggedIn(false); // will redirect via protected route
+
+    setIsLoggedIn(false); // protected route redirect
   };
 
   return (

@@ -3,6 +3,27 @@ import ReactButton from "./ReactButton";
 import { ToastContainer, toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+const getCacheKey = (email) => `passop_passwords_${email}`;
+
+const getCachedPasswords = (email) => {
+  try {
+    const raw = localStorage.getItem(getCacheKey(email));
+    if (!raw) return null;
+    return JSON.parse(raw).data;
+  } catch {
+    return null;
+  }
+};
+
+const setCachedPasswords = (email, data) => {
+  localStorage.setItem(
+    getCacheKey(email),
+    JSON.stringify({
+      data,
+      timestamp: Date.now(),
+    })
+  );
+};
 
 const Manager = () => {
   const [show, setShow] = useState(false);
@@ -49,6 +70,7 @@ const Manager = () => {
       if (res.ok) {
         const data = await res.json();
         setPasswordArray(data);
+        setCachedPasswords(userEmail, data);
       } else {
         console.error("Failed to fetch passwords:", await res.json());
       }
@@ -58,6 +80,15 @@ const Manager = () => {
   };
 
   useEffect(() => {
+    if (!userEmail) return;
+
+    // 1. Load from cache instantly
+    const cached = getCachedPasswords(userEmail);
+    if (cached) {
+      setPasswordArray(cached);
+    }
+
+    // 2. Revalidate from backend
     fetchPasswords();
   }, [userEmail]);
 
