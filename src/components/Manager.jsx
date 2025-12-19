@@ -2,12 +2,13 @@ import React, { useState, useEffect } from "react";
 import ReactButton from "./ReactButton";
 import { ToastContainer, toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-const getCacheKey = (email) => `passop_passwords_${email}`;
 
-const getCachedPasswords = (email) => {
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+const CACHE_KEY = "passop_passwords";
+
+const getCachedPasswords = () => {
   try {
-    const raw = localStorage.getItem(getCacheKey(email));
+    const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     return JSON.parse(raw).data;
   } catch {
@@ -15,14 +16,15 @@ const getCachedPasswords = (email) => {
   }
 };
 
-const setCachedPasswords = (email, data) => {
+const setCachedPasswords = (data) => {
   localStorage.setItem(
-    getCacheKey(email),
-    JSON.stringify({
-      data,
-      timestamp: Date.now(),
-    })
+    CACHE_KEY,
+    JSON.stringify({ data, timestamp: Date.now() })
   );
+};
+
+const clearCachedPasswords = () => {
+  localStorage.removeItem(CACHE_KEY);
 };
 
 const Manager = () => {
@@ -35,9 +37,8 @@ const Manager = () => {
   const [buttonText, setButtonText] = useState("Save");
   const [deleteId, setDeleteId] = useState(null);
 
-  const BASE_URL = BACKEND_URL;
   const navigate = useNavigate();
-  const userEmail = localStorage.getItem("userEmail");
+  const token = localStorage.getItem("token");
 
   const savePassToast = () => toast("Password saved successfully!");
 
@@ -48,29 +49,31 @@ const Manager = () => {
     }));
   };
 
-  const copyFunction = (text) => {
+  const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     setCopyToast("Copied!");
     setTimeout(() => setCopyToast(""), 2000);
   };
 
-  // Redirect to login if user not logged in
+  // Redirect if not logged in
   useEffect(() => {
-    if (!userEmail) navigate("/Login");
-  }, [userEmail, navigate]);
+    if (!token) navigate("/login");
+  }, [token, navigate]);
 
-  // Fetch passwords for logged-in user
+  // Fetch passwords from backend
   const fetchPasswords = async () => {
-    if (!userEmail) return;
-
     try {
-      const res = await fetch(`${BASE_URL}/`, {
-        headers: { "Content-Type": "application/json", userid: userEmail },
+      const res = await fetch(`${BACKEND_URL}/`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
       });
+
       if (res.ok) {
         const data = await res.json();
         setPasswordArray(data);
-        setCachedPasswords(userEmail, data);
+        setCachedPasswords(data);
       } else {
         console.error("Failed to fetch passwords:", await res.json());
       }
@@ -79,20 +82,14 @@ const Manager = () => {
     }
   };
 
+  // Load cached passwords first, then revalidate
   useEffect(() => {
-    if (!userEmail) return;
-
-    // 1. Load from cache instantly
-    const cached = getCachedPasswords(userEmail);
-    if (cached) {
-      setPasswordArray(cached);
-    }
-
-    // 2. Revalidate from backend
+    const cached = getCachedPasswords();
+    if (cached) setPasswordArray(cached);
     fetchPasswords();
-  }, [userEmail]);
+  }, []);
 
-  // Save or update password
+  // Save or update a password
   const savePassword = async () => {
     if (!form.site || !form.username || !form.password) {
       alert("Please fill all fields");
@@ -101,11 +98,14 @@ const Manager = () => {
 
     try {
       const method = editId ? "PUT" : "POST";
-      const url = editId ? `${BASE_URL}/${editId}` : `${BASE_URL}/`;
+      const url = editId ? `${BACKEND_URL}/${editId}` : `${BACKEND_URL}/`;
 
       const res = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json", userid: userEmail },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(form),
       });
 
@@ -134,16 +134,18 @@ const Manager = () => {
     setButtonText("Update");
   };
 
-  // When user clicks delete button
-  const deletePassword = (id) => {
-    setDeleteId(id); // just set the id; modal will appear
-  };
+  const deletePassword = (id) => setDeleteId(id);
+
   const confirmDeletePassword = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/${deleteId}`, {
+      const res = await fetch(`${BACKEND_URL}/${deleteId}`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json", userid: userEmail },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
       });
+
       if (res.ok) {
         toast("Password deleted successfully!");
         fetchPasswords();
@@ -154,23 +156,7 @@ const Manager = () => {
       console.error(err);
       toast.error("Error deleting password");
     } finally {
-      setDeleteId(null); // close modal
-    }
-  };
-
-  const deletePasswor = async (id) => {
-    const confirmDelete = window.confirm("Do you want to delete?");
-    if (!confirmDelete) return;
-
-    try {
-      const res = await fetch(`${BASE_URL}/${id}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json", userid: userEmail },
-      });
-      if (res.ok) fetchPasswords();
-      else alert("Failed to delete password");
-    } catch (err) {
-      console.error("Error deleting password:", err);
+      setDeleteId(null);
     }
   };
 
@@ -178,11 +164,12 @@ const Manager = () => {
     <>
       <ToastContainer />
 
-      {/* Background & Heading */}
+      {/* Background */}
       <div className="absolute inset-0 -z-10 h-full w-full bg-green-50 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-size-[14px_24px]">
         <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-fuchsia-200 opacity-20 blur-[100px]"></div>
       </div>
 
+      {/* Heading */}
       <div className="flex flex-row justify-center items-center gap-2 p-4">
         <h1 className="font-extrabold text-3xl text-black text-outline">
           Password
@@ -231,10 +218,11 @@ const Manager = () => {
         </div>
       </form>
 
-      {/* Save/Update Button */}
+      {/* Save Button */}
       <div className="flex flex-row gap-2 p-4 justify-center">
         <ReactButton
           onClick={savePassword}
+          text={buttonText}
           icon={
             <lord-icon
               src="https://cdn.lordicon.com/efxgwrkc.json"
@@ -242,17 +230,15 @@ const Manager = () => {
               target="button"
             ></lord-icon>
           }
-          text={buttonText}
         />
       </div>
 
       {/* Password Table */}
-      {/* Password Section */}
       {passwordArray.length > 0 ? (
         <div className="p-4">
           <h2 className="inline-block mb-3">
             <span className="bg-green-200 text-green-800 text-sm font-semibold px-3 py-1 rounded-full uppercase tracking-wide shadow-sm flex items-center gap-1">
-              <span>🔒</span> Saved Passwords
+              🔒 Saved Passwords
             </span>
           </h2>
           <div className="overflow-x-auto w-full">
@@ -274,38 +260,35 @@ const Manager = () => {
                     <td className="border border-white px-2 py-1 relative pr-10">
                       <span>{item.site}</span>
                       <span
-                        className="w-5 h-5 absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"
-                        onClick={() => copyFunction(item.site)}
+                        onClick={() => copyToClipboard(item.site)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"
                       >
                         <lord-icon
                           src="https://cdn.lordicon.com/iykgtsbt.json"
                           trigger="click"
                           style={{ width: "20px", height: "20px" }}
-                        ></lord-icon>
+                        />
                       </span>
                     </td>
-
                     <td className="border border-white px-2 py-1 relative pr-10">
                       <span>{item.username}</span>
                       <span
-                        className="w-5 h-5 absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"
-                        onClick={() => copyFunction(item.username)}
+                        onClick={() => copyToClipboard(item.username)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"
                       >
                         <lord-icon
                           src="https://cdn.lordicon.com/iykgtsbt.json"
                           trigger="click"
                           style={{ width: "20px", height: "20px" }}
-                        ></lord-icon>
+                        />
                       </span>
                     </td>
-
                     <td className="border border-white px-2 py-1 relative pr-16">
                       <span className="font-mono">
                         {visiblePasswords[item._id]
                           ? item.password
                           : "•".repeat(8)}
                       </span>
-
                       <img
                         src={
                           visiblePasswords[item._id]
@@ -316,41 +299,38 @@ const Manager = () => {
                         className="w-5 h-5 absolute right-10 top-1/2 -translate-y-1/2 cursor-pointer"
                         onClick={() => togglePasswordVisibility(item._id)}
                       />
-
                       <span
-                        className="w-5 h-5 absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"
-                        onClick={() => copyFunction(item.password)}
+                        onClick={() => copyToClipboard(item.password)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"
                       >
                         <lord-icon
                           src="https://cdn.lordicon.com/iykgtsbt.json"
                           trigger="click"
                           style={{ width: "20px", height: "20px" }}
-                        ></lord-icon>
+                        />
                       </span>
                     </td>
-
                     <td className="border border-white px-2 py-1">
                       <div className="flex justify-center gap-2">
                         <button
-                          className="hover:bg-yellow-300 px-3 py-1.5 rounded-lg"
                           onClick={() => handleEdit(item)}
+                          className="hover:bg-yellow-300 px-3 py-1.5 rounded-lg cursor-pointer"
                         >
                           <lord-icon
                             src="https://cdn.lordicon.com/gwlusjdu.json"
                             trigger="hover"
                             style={{ width: "20px", height: "20px" }}
-                          ></lord-icon>
+                          />
                         </button>
-
                         <button
-                          className="hover:bg-red-400 px-3 py-1.5 rounded-lg"
                           onClick={() => deletePassword(item._id)}
+                          className="hover:bg-red-400 px-3 py-1.5 rounded-lg cursor-pointer"
                         >
                           <lord-icon
                             src="https://cdn.lordicon.com/xyfswyxf.json"
                             trigger="hover"
                             style={{ width: "20px", height: "20px" }}
-                          ></lord-icon>
+                          />
                         </button>
                       </div>
                     </td>
@@ -361,7 +341,6 @@ const Manager = () => {
           </div>
         </div>
       ) : (
-        /* Empty State */
         <div className="flex flex-col items-center justify-center mt-16 text-center text-gray-700">
           <lord-icon
             src="https://cdn.lordicon.com/egiwmiit.json"
@@ -369,10 +348,8 @@ const Manager = () => {
             delay="2000"
             colors="primary:#10b981"
             style={{ width: "90px", height: "90px" }}
-          ></lord-icon>
-
+          />
           <h3 className="text-xl font-semibold mt-4">Your vault is empty</h3>
-
           <p className="text-sm text-gray-500 mt-1 max-w-sm">
             Add your first password using the form above. Everything you save
             will appear here securely.
@@ -386,7 +363,8 @@ const Manager = () => {
           {copyToast}
         </div>
       )}
-      {/* Delete Confirmation Modal */}
+
+      {/* Delete Modal */}
       {deleteId && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-lg p-4 w-80 animate-scaleIn">
@@ -396,25 +374,23 @@ const Manager = () => {
                 trigger="loop"
                 colors="primary:#ef4444"
                 style={{ width: "50px", height: "50px" }}
-              ></lord-icon>
-
+              />
               <h3 className="text-lg font-semibold text-gray-800">
                 Delete this password?
               </h3>
               <p className="text-sm text-gray-500">
                 This action cannot be undone.
               </p>
-
               <div className="flex justify-between gap-2 mt-4 w-full">
                 <button
-                  className="flex-1 px-3 py-1.5 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
                   onClick={() => setDeleteId(null)}
+                  className="cursor-pointer flex-1 px-3 py-1.5 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
                 >
                   Cancel
                 </button>
                 <button
-                  className="flex-1 px-3 py-1.5 rounded-full bg-red-500 text-white hover:bg-red-600 transition"
-                  onClick={confirmDeletePassword}
+                  onClick={() => confirmDeletePassword()}
+                  className=" cursor-pointer flex-1 px-3 py-1.5 rounded-full bg-red-500 text-white hover:bg-red-600 transition"
                 >
                   Delete
                 </button>

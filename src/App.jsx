@@ -12,18 +12,25 @@ import Contact from "./components/Contact";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
+  const [userEmail, setUserEmail] = useState(
+    localStorage.getItem("userEmail") || ""
+  );
 
   return (
     <BrowserRouter>
-      {/* App Wrapper */}
-      <div className="min-h-screen flex flex-col ">
-        <Navbar setIsLoggedIn={setIsLoggedIn} />
+      <div className="min-h-screen flex flex-col">
+        <Navbar setIsLoggedIn={setIsLoggedIn} userEmail={userEmail} />
 
         <main className="flex-grow flex flex-col">
           <Routes>
             <Route
               path="/login"
-              element={<Login setIsLoggedIn={setIsLoggedIn} />}
+              element={
+                <Login
+                  setIsLoggedIn={setIsLoggedIn}
+                  setUserEmail={setUserEmail}
+                />
+              }
             />
             <Route path="/signup" element={<Signup />} />
             <Route path="/" element={<Home />} />

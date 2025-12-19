@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-const MIN_LOADING_TIME = 800; // ms
+const MIN_LOADING_TIME = 800;
 
-const Login = ({ setIsLoggedIn }) => {
+const Login = ({ setIsLoggedIn, setUserEmail }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -15,7 +15,6 @@ const Login = ({ setIsLoggedIn }) => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-
     setError("");
 
     if (!email || !password) {
@@ -34,15 +33,18 @@ const Login = ({ setIsLoggedIn }) => {
       });
 
       const data = await res.json();
-
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, MIN_LOADING_TIME - elapsed);
 
       setTimeout(() => {
         if (res.ok) {
+          // Save token and email
           localStorage.setItem("token", data.token);
-          localStorage.setItem("userEmail", data.email);
+          localStorage.setItem("userEmail", email);
+
           setIsLoggedIn(true);
+          setUserEmail(email); // Update app state
+
           navigate("/");
         } else {
           setError(data.message || "Invalid email or password");
@@ -51,10 +53,6 @@ const Login = ({ setIsLoggedIn }) => {
       }, remaining);
     } catch (err) {
       console.error(err);
-
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, MIN_LOADING_TIME - elapsed);
-
       setTimeout(() => {
         setError("Something went wrong. Please try again.");
         setLoading(false);
@@ -63,18 +61,17 @@ const Login = ({ setIsLoggedIn }) => {
   };
 
   const inputClass = `w-full px-4 py-2 bg-white/20 border border-white/30 rounded-lg
-    placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-400
-    ${loading ? "opacity-60 cursor-not-allowed" : ""}`;
+    placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-400 ${
+      loading ? "opacity-60 cursor-not-allowed" : ""
+    }`;
 
   return (
     <div className="grow justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-black flex flex-col">
-      {/* Header */}
       <div className="flex justify-center items-center gap-1 p-6">
         <h1 className="font-extrabold text-3xl text-white">Password</h1>
         <h1 className="font-extrabold text-3xl text-emerald-400">Manager</h1>
       </div>
 
-      {/* Card */}
       <div className="flex flex-1 items-center justify-center px-4">
         <div className="w-full max-w-md backdrop-blur-lg bg-white/10 border border-white/20 rounded-2xl shadow-2xl p-8 text-white">
           <h2 className="text-2xl font-semibold text-center">Welcome Back</h2>
@@ -83,7 +80,6 @@ const Login = ({ setIsLoggedIn }) => {
           </p>
 
           <form className="mt-6 space-y-4" onSubmit={handleLogin}>
-            {/* Email */}
             <div>
               <label className="block text-sm font-medium mb-1">Email</label>
               <input
@@ -96,7 +92,6 @@ const Login = ({ setIsLoggedIn }) => {
               />
             </div>
 
-            {/* Password */}
             <div className="relative">
               <label className="block text-sm font-medium mb-1">Password</label>
               <input
@@ -110,35 +105,27 @@ const Login = ({ setIsLoggedIn }) => {
               <img
                 src={showPassword ? "./eye.png" : "./hidden.png"}
                 alt="toggle password"
-                className={`w-5 h-5 absolute right-3 top-9 opacity-80 hover:opacity-100
-                  ${
-                    loading ? "cursor-not-allowed opacity-40" : "cursor-pointer"
-                  }`}
+                className={`w-5 h-5 absolute right-3 top-9 opacity-80 hover:opacity-100 ${
+                  loading ? "cursor-not-allowed opacity-40" : "cursor-pointer"
+                }`}
                 onClick={() => !loading && setShowPassword(!showPassword)}
               />
             </div>
 
-            {/* Error message */}
             {error && (
-              <div
-                className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2"
-                aria-live="polite"
-              >
+              <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
                 {error}
               </div>
             )}
 
-            {/* Login Button */}
             <button
               type="submit"
               disabled={loading}
-              className={`w-full py-2 rounded-lg font-semibold transition
-                flex items-center justify-center gap-3
-                ${
-                  loading
-                    ? "bg-emerald-400 cursor-not-allowed"
-                    : "bg-emerald-500 hover:bg-emerald-400 cursor-pointer"
-                }`}
+              className={`w-full py-2 rounded-lg font-semibold transition flex items-center justify-center gap-3 ${
+                loading
+                  ? "bg-emerald-400 cursor-not-allowed"
+                  : "bg-emerald-500 hover:bg-emerald-400 cursor-pointer"
+              }`}
             >
               {loading ? (
                 <>
